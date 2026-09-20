@@ -1,127 +1,182 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#f2f2f7">
-<title>Job Tracker — Jayanth Pasupuleti</title>
+<meta name="theme-color" content="#070908">
+<title>OPS DECK — Job Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<div class="bg" aria-hidden="true">
-  <div class="blob b1"></div>
-  <div class="blob b2"></div>
-  <div class="blob b3"></div>
-</div>
-
-<header class="nav" id="nav">
-  <div class="nav-inner">
-    <div class="nav-brand">
-      <div class="avatar">JP</div>
-      <div class="nav-titles">
-        <div class="nav-title">Job Tracker</div>
-        <div class="nav-sub">Jayanth Pasupuleti · Senior Data Engineer</div>
-      </div>
+<!-- ============ FACE ID LOCK ============ -->
+<div id="lock-screen" hidden>
+  <div class="lock-card">
+    <div class="lock-face" aria-hidden="true">
+      <svg viewBox="0 0 64 64" width="72" height="72" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <rect x="14" y="8" width="36" height="48" rx="10"/>
+        <path d="M24 24h.01M40 24h.01M26 34c2 3 5 4.5 6 4.5s4-1.5 6-4.5M24 44h16"/>
+      </svg>
     </div>
-    <button class="btn btn-primary" id="btn-add-top">+ Add</button>
+    <div class="mono lock-kicker" id="lock-kicker">SECURE ACCESS</div>
+    <h1 id="lock-title">FACE ID LOCK</h1>
+    <p class="lock-sub" id="lock-sub"></p>
+    <button class="cta lock-btn" id="lock-primary">UNLOCK WITH FACE ID</button>
+    <button class="ghost-btn mono lock-ghost" id="lock-secondary" hidden></button>
+  </div>
+</div>
+<div class="grid-bg" aria-hidden="true"></div>
+
+<!-- ============ COMMAND BAR ============ -->
+<header class="cmd">
+  <div class="cmd-left">
+    <div class="logo">JP<span class="logo-slash">//</span>OPS<span class="logo-dot">.</span></div>
+    <div class="cmd-sub mono">JOB HUNT // MISSION CONTROL</div>
+  </div>
+  <div class="cmd-search">
+    <span class="search-icon" aria-hidden="true">⌕</span>
+    <input type="search" id="filter-q" placeholder="Search roles, companies, notes…" autocomplete="off" aria-label="Search applications">
+    <kbd>/</kbd>
+  </div>
+  <div class="cmd-right">
+    <div class="sync-chip mono" title="Seed version and last sync">
+      <span class="sync-dot" id="sync-dot"></span>
+      <span id="sync-text">SYNCING…</span>
+      <button id="btn-sync" class="chip-btn">SYNC</button>
+    </div>
+    <div class="view-toggle" role="tablist" aria-label="View">
+      <button id="view-board" class="is-active" role="tab" aria-selected="true">BOARD</button>
+      <button id="view-list" role="tab" aria-selected="false">LIST</button>
+    </div>
+    <button id="theme-toggle" class="icon-btn" aria-label="Toggle light mode" title="Toggle light / dark">◐</button>
+    <button id="btn-lock" class="icon-btn" aria-label="Face ID lock" title="Face ID lock">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+    </button>
+    <button id="btn-operator" class="ghost-btn mono">OPERATOR</button>
+    <button class="cta" id="btn-add-top">+ LOG APPLICATION</button>
   </div>
 </header>
 
-<main class="page">
+<main class="deck">
 
-  <section class="hero">
-    <h1 class="large-title">Applications</h1>
-    <p class="sync-line"><span class="sync-dot" id="sync-dot"></span><span id="sync-text">Syncing…</span>
-      <button class="link-btn" id="btn-sync">Sync now</button>
-    </p>
-  </section>
+  <!-- ============ HUD STATS ============ -->
+  <section class="hud" id="stat-cards" aria-label="Stats"></section>
 
-  <div class="searchbar">
-    <span class="search-icon" aria-hidden="true">⌕</span>
-    <input type="search" id="filter-q" placeholder="Search company, role, location, notes" autocomplete="off" aria-label="Search applications">
-  </div>
-
-  <section class="stats-strip" id="stat-cards" aria-label="Stats"></section>
-
-  <section class="glass-card pipeline" aria-label="Pipeline">
-    <h2>Pipeline</h2>
-    <div class="funnel" id="funnel"></div>
-  </section>
-
-  <section class="controls glass-card" aria-label="Filters">
-    <div class="seg" id="status-seg" role="tablist" aria-label="Status filter">
-      <button class="seg-btn is-active" data-status="all" role="tab">All</button>
-      <button class="seg-btn" data-status="not-applied" role="tab">To apply</button>
-      <button class="seg-btn" data-status="applied" role="tab">Applied</button>
-      <button class="seg-btn" data-status="on-hold" role="tab">On hold</button>
+  <!-- ============ PIPELINE FLOW ============ -->
+  <section class="panel flow" aria-label="Pipeline">
+    <div class="panel-head">
+      <h2>PIPELINE FLOW</h2>
+      <span class="mono dim" id="flow-sub"></span>
     </div>
-    <div class="controls-row">
+    <div class="flow-track" id="pipeline-flow"></div>
+  </section>
+
+  <!-- ============ FILTER DECK ============ -->
+  <section class="panel filters" aria-label="Filters">
+    <div class="filter-row">
       <div class="chips" id="prio-chips" aria-label="Priority filter">
-        <button class="chip is-active" data-prio="all">All</button>
-        <button class="chip" data-prio="High">High</button>
-        <button class="chip" data-prio="Medium">Medium</button>
-        <button class="chip" data-prio="Low">Low</button>
+        <button class="chip is-active" data-prio="all">ALL</button>
+        <button class="chip prio-high" data-prio="High">HIGH</button>
+        <button class="chip prio-medium" data-prio="Medium">MED</button>
+        <button class="chip prio-low" data-prio="Low">LOW</button>
       </div>
-      <label class="switch-wrap"><span>Remote only</span>
+      <label class="switch-wrap mono"><span>REMOTE ONLY</span>
         <span class="switch"><input type="checkbox" id="filter-remote"><span class="knob"></span></span>
       </label>
       <select id="sort-by" aria-label="Sort applications">
-        <option value="priority">Priority</option>
-        <option value="date">Newest</option>
-        <option value="company">Company A–Z</option>
+        <option value="priority">SORT: PRIORITY</option>
+        <option value="date">SORT: NEWEST</option>
+        <option value="company">SORT: COMPANY A–Z</option>
       </select>
     </div>
-    <p class="result-count" id="result-count"></p>
-  </section>
-
-  <section class="app-list" id="app-list" aria-label="Applications"></section>
-
-  <section class="glass-card" aria-label="Profile">
-    <h2>Profile</h2>
-    <div class="profile-grid">
-      <div class="profile-field"><span class="label">Name</span><span id="p-name"></span></div>
-      <div class="profile-field"><span class="label">Title</span><span id="p-title"></span></div>
-      <div class="profile-field"><span class="label">Location</span><span id="p-location"></span></div>
-      <div class="profile-field"><span class="label">Work authorization</span><span id="p-auth" class="pill pill-warn"></span></div>
-      <div class="profile-field"><span class="label">Target salary</span><span id="p-salary"></span></div>
-      <div class="profile-field"><span class="label">Availability</span><span id="p-avail" class="pill pill-ok"></span></div>
-      <div class="profile-field"><span class="label">Email</span><a id="p-email" href="#"></a></div>
-      <div class="profile-field"><span class="label">LinkedIn</span><a id="p-linkedin" href="#" target="_blank" rel="noopener"></a></div>
-      <div class="profile-field full"><span class="label">Top skills</span><span id="p-skills" class="skills"></span></div>
+    <div class="seg" id="status-seg" role="tablist" aria-label="Status filter" hidden>
+      <button class="seg-btn is-active" data-status="all" role="tab">ALL</button>
+      <button class="seg-btn" data-status="not-applied" role="tab">QUEUE</button>
+      <button class="seg-btn" data-status="applied" role="tab">APPLIED+</button>
+      <button class="seg-btn" data-status="on-hold" role="tab">HOLD / SHELF</button>
     </div>
   </section>
 
-  <section class="glass-card" aria-label="Quick apply facts">
-    <h2>Quick apply facts <span class="hint">tap to copy</span></h2>
-    <div class="facts-grid" id="facts-grid"></div>
+  <!-- ============ KANBAN BOARD ============ -->
+  <section class="board-wrap" id="board-section" aria-label="Kanban board">
+    <div class="lane-nav mono">
+      <button id="lane-prev" aria-label="Previous lane">‹</button>
+      <span id="lane-name">QUEUE</span>
+      <button id="lane-next" aria-label="Next lane">›</button>
+    </div>
+    <div class="board" id="board"></div>
   </section>
 
-  <footer class="foot glass-card">
-    <button class="btn" id="btn-export">Export JSON</button>
-    <button class="btn" id="btn-import">Import JSON</button>
-    <button class="btn btn-danger" id="btn-reset">Reset</button>
-    <input type="file" id="import-file" accept="application/json" hidden>
+  <!-- ============ LIST VIEW ============ -->
+  <section class="panel list-panel" id="list-section" aria-label="List view" hidden>
+    <div class="panel-head">
+      <h2>ALL ROLES</h2>
+      <span class="mono dim" id="result-count"></span>
+    </div>
+    <div class="list" id="app-list"></div>
+  </section>
+
+  <!-- ============ OPERATOR PANEL ============ -->
+  <aside class="panel operator" id="operator-panel" aria-label="Operator profile" hidden>
+    <div class="panel-head">
+      <h2>OPERATOR FILE</h2>
+      <button class="chip-btn" id="btn-operator-close">CLOSE</button>
+    </div>
+    <div class="profile-grid">
+      <div class="p-field"><span class="p-label mono">NAME</span><span id="p-name"></span></div>
+      <div class="p-field"><span class="p-label mono">TITLE</span><span id="p-title"></span></div>
+      <div class="p-field"><span class="p-label mono">LOCATION</span><span id="p-location"></span></div>
+      <div class="p-field"><span class="p-label mono">WORK AUTH</span><span id="p-auth" class="tag tag-amber"></span></div>
+      <div class="p-field"><span class="p-label mono">TARGET</span><span id="p-salary"></span></div>
+      <div class="p-field"><span class="p-label mono">AVAILABILITY</span><span id="p-avail" class="tag tag-lime"></span></div>
+      <div class="p-field"><span class="p-label mono">EMAIL</span><a id="p-email" href="#"></a></div>
+      <div class="p-field"><span class="p-label mono">LINKEDIN</span><a id="p-linkedin" href="#" target="_blank" rel="noopener"></a></div>
+      <div class="p-field full"><span class="p-label mono">STACK</span><span id="p-skills" class="skills"></span></div>
+    </div>
+    <h3 class="facts-title">QUICK APPLY FACTS <span class="mono dim">— tap to copy</span></h3>
+    <div class="facts-grid" id="facts-grid"></div>
+  </aside>
+
+  <!-- ============ FOOTER / DATA OPS ============ -->
+  <footer class="panel foot">
+    <div class="foot-left mono dim">
+      <span id="data-version"></span>
+      <span id="foot-sync"></span>
+    </div>
+    <div class="foot-right">
+      <button class="ghost-btn mono" id="btn-faceid">FACE ID: OFF</button>
+      <button class="ghost-btn mono" id="btn-export">EXPORT JSON</button>
+      <button class="ghost-btn mono" id="btn-import">IMPORT JSON</button>
+      <button class="ghost-btn mono danger" id="btn-reset">RESET</button>
+      <input type="file" id="import-file" accept="application/json" hidden>
+    </div>
   </footer>
 
 </main>
 
 <button class="fab" id="btn-add" aria-label="Add application">+</button>
 
+<!-- ============ ADD / EDIT SHEET ============ -->
 <div class="sheet-backdrop" id="modal-backdrop" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="grabber" aria-hidden="true"></div>
-    <h2 id="modal-title">Add application</h2>
+    <div class="sheet-head">
+      <h2 id="modal-title">LOG APPLICATION</h2>
+      <span class="mono dim" id="modal-sub">NEW RECORD</span>
+    </div>
     <form id="app-form" novalidate>
       <div class="form-grid">
-        <label>Company*<input name="company" required placeholder="Acme Corp"></label>
-        <label>Role title*<input name="title" required placeholder="Senior Data Engineer"></label>
-        <label>Location<input name="location" placeholder="Remote US"></label>
-        <label>Pay<input name="pay" placeholder="$140–175k/yr"></label>
-        <label>Job board<input name="board" placeholder="LinkedIn / Built In / Dice"></label>
-        <label class="full">Apply URL<input name="url" type="url" placeholder="https://…"></label>
-        <label>Status
+        <label>COMPANY*<input name="company" required placeholder="Acme Corp" autocomplete="off"></label>
+        <label>ROLE TITLE*<input name="title" required placeholder="Senior Data Engineer" autocomplete="off"></label>
+        <label>LOCATION<input name="location" placeholder="Remote US" autocomplete="off"></label>
+        <label>PAY<input name="pay" placeholder="$140–175k/yr" autocomplete="off"></label>
+        <label>JOB BOARD<input name="board" placeholder="LinkedIn / Built In / Dice" autocomplete="off"></label>
+        <label class="full">APPLY URL<input name="url" type="url" placeholder="https://…" autocomplete="off"></label>
+        <label>STATUS
           <select name="status">
-            <option value="not-applied">Not applied</option>
+            <option value="not-applied">Queue (not applied)</option>
             <option value="applied">Applied</option>
             <option value="screening">Screening</option>
             <option value="interview">Interview</option>
@@ -130,30 +185,31 @@
             <option value="rejected">Rejected</option>
           </select>
         </label>
-        <label>Priority
+        <label>PRIORITY
           <select name="priority">
             <option>High</option>
             <option selected>Medium</option>
             <option>Low</option>
           </select>
         </label>
-        <label>Date added<input name="dateAdded" type="date" value="2026-09-20"></label>
-        <label class="check"><span class="switch"><input name="remote" type="checkbox"><span class="knob"></span></span> Remote role</label>
-        <label class="check"><span class="switch"><input name="tailored" type="checkbox"><span class="knob"></span></span> Tailored resume ready</label>
-        <label class="full">Notes<textarea name="notes" rows="3" placeholder="Fit notes, OPT/E-Verify flags…"></textarea></label>
+        <label>DATE ADDED<input name="dateAdded" type="date"></label>
+        <label class="check"><span class="switch"><input name="remote" type="checkbox"><span class="knob"></span></span> REMOTE ROLE</label>
+        <label class="check"><span class="switch"><input name="tailored" type="checkbox"><span class="knob"></span></span> TAILORED RESUME READY</label>
+        <label class="full">NOTES<textarea name="notes" rows="3" placeholder="Fit notes, OPT / E-Verify flags, job IDs…"></textarea></label>
       </div>
       <div class="form-actions">
-        <button type="button" class="btn btn-danger" id="btn-delete" hidden>Delete</button>
+        <button type="button" class="ghost-btn mono danger" id="btn-delete" hidden>DELETE</button>
         <span class="spacer"></span>
-        <button type="button" class="btn" id="btn-cancel">Cancel</button>
-        <button type="submit" class="btn btn-primary">Save</button>
+        <button type="button" class="ghost-btn mono" id="btn-cancel">CANCEL</button>
+        <button type="submit" class="cta">SAVE RECORD</button>
       </div>
     </form>
   </div>
 </div>
 
-<div class="toast" id="toast" hidden></div>
+<div class="toast mono" id="toast" hidden></div>
 
+<script src="lock.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
