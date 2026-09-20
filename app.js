@@ -1,5 +1,8 @@
 /* Job Application Tracker — Jayanth Pasupuleti
-   Plain JS, no dependencies. State persists in localStorage. */
+   iOS 27 Liquid Glass edition. Plain JS, no dependencies.
+   Seed data is versioned: bumping DATA_VERSION merges new/changed seed
+   entries into every visitor's saved list (localStorage) without wiping
+   their own additions or status changes. */
 
 "use strict";
 
@@ -28,20 +31,23 @@ const QUICK_FACTS = [
   { label: "Previously employed here", value: "No — fresh applicant" }
 ];
 
+/* Bump this whenever DEFAULT_APPS changes so saved lists get the update. */
+const DATA_VERSION = 2;
+
 /* ---------------- Preloaded applications ----------------
    status: not-applied | applied | screening | interview | offer | on-hold | rejected
    priority: High | Medium | Low                                            */
 const DEFAULT_APPS = [
   // ---- Round 1, Tier 1 ----
   { id: "r1-01", company: "Motion Recruitment Partners", title: "Senior Data Engineer (Insurance Data Migration Specialist)", location: "Remote US", pay: "$140–180k/yr", board: "Dice", url: "https://www.dice.com/job-detail/086e09b8-2393-4b8b-ac2b-6fd4d22f9737", dateAdded: "2026-09-20", status: "on-hold", priority: "Medium", remote: true, tailored: true, notes: "Insurance data migration + bank conversion background = strong domain fit. ON HOLD: posting requires Canada work authorization." },
-  { id: "r1-02", company: "Optum (UnitedHealth Group)", title: "Senior Cloud Data Engineer – Remote", location: "Remote US", pay: "$91.7–163.7k/yr", board: "UnitedHealth Careers (own ATS)", url: "https://careers.unitedhealthgroup.com/job/eden-prairie/senior-cloud-data-engineer-remote/34088/100095605792", dateAdded: "2026-09-20", status: "on-hold", priority: "High", remote: true, tailored: false, notes: "Req 2383492. Vetted Sep 20: active, no OPT exclusion, E-Verify poster on UHG site, target pay in range, fit OK. ON HOLD: UHG Taleo already has an account for his email — guest apply blocked. Awaiting his login (secure card sent Sep 20)." },
+  { id: "r1-02", company: "Optum (UnitedHealth Group)", title: "Senior Cloud Data Engineer – Remote", location: "Remote US", pay: "$91.7–163.7k/yr", board: "UnitedHealth Careers (own ATS)", url: "https://careers.unitedhealthgroup.com/job/eden-prairie/senior-cloud-data-engineer-remote/34088/100095605792", dateAdded: "2026-09-20", status: "on-hold", priority: "High", remote: true, tailored: false, notes: "Req 2383492. Vetted Sep 20: active, no OPT exclusion, E-Verify poster on UHG site, target pay in range, fit OK. ON HOLD: UHG Taleo already has an account for his email — guest apply blocked. Awaiting his login or reset decision." },
   { id: "r1-03", company: "Saransh Inc", title: "Senior/Lead Data Engineer – Remote (US), W2 only", location: "Remote US", pay: "", board: "Saransh Careers (own site)", url: "https://saranshinc.com/careers/?job_id=z5G7h3l6a1kMvyS65NP3c4dzsSltAQLnjdlfVN8pWOU=", dateAdded: "2026-09-20", status: "on-hold", priority: "Medium", remote: true, tailored: false, notes: "Job JPC-4519. Vetted Sep 20: active, no OPT exclusion, fit OK (stretch: Spanner/Neo4j/Terraform). ON HOLD: E-Verify enrollment not found in official search — mandatory for STEM OPT. Resume if E-Verify/I-983 confirmed directly." },
   { id: "r1-04", company: "MSRcosmos LLC", title: "Senior Data Engineer (ETL / Python)", location: "Remote US", pay: "", board: "LinkedIn", url: "https://www.linkedin.com/jobs/senior-data-engineer-jobs", dateAdded: "2026-09-20", status: "on-hold", priority: "High", remote: true, tailored: false, notes: "MANUAL LIST: LinkedIn Easy Apply only — Jayanth applies himself (never via Easy Apply). Vetted Sep 20: active, no OPT exclusion, E-Verify enrolled (Jun 2024), fit OK." },
-  { id: "r1-05", company: "JPMorgan Chase", title: "Data Engineer III - Python/SQL", location: "Plano, TX", pay: "", board: "JPMC Careers (own ATS)", url: "https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/job/210790994", dateAdded: "2026-09-20", status: "not-applied", priority: "High", remote: false, tailored: false, notes: "Original ref 210790994 closed; applying to closest open posting: Data Engineer III - Python/SQL (job 210736986, posted Aug 27). Vetted Sep 20: no OPT exclusion, E-Verify enrolled, strong fit. IN PROGRESS: application underway on JPMC ATS (hCaptcha gate; one-time solve permission granted Sep 20)." },
+  { id: "r1-05", company: "JPMorgan Chase", title: "Data Engineer III - Python/SQL", location: "Plano, TX", pay: "", board: "JPMC Careers (own ATS)", url: "https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/job/210736986", dateAdded: "2026-09-20", status: "not-applied", priority: "High", remote: false, tailored: false, notes: "Job 210736986 (posted Aug 27; original ref 210790994 closed). Vetted Sep 20: active, no OPT exclusion, E-Verify enrolled, strong fit. IN PROGRESS: 6-digit identity code sent to email Sep 20 (expires in 10 min) — needs a fresh code from Jayanth or browser takeover before continuing. Nothing submitted yet." },
   { id: "r1-06", company: "Gifthealth", title: "Senior Data Engineer", location: "Columbus, OH", pay: "", board: "LinkedIn", url: "https://www.linkedin.com/jobs/senior-data-engineer-jobs", dateAdded: "2026-09-20", status: "not-applied", priority: "Medium", remote: false, tailored: false, notes: "Posted 5–6 days ago. Local to Ohio." },
   { id: "r1-07", company: "Bank of America", title: "Senior Data Engineer", location: "Charlotte, NC", pay: "", board: "The Muse", url: "https://www.themuse.com/hiring/location/charlotte-nc/keyword/senior-data-domain-architect/", dateAdded: "2026-09-20", status: "not-applied", priority: "Medium", remote: false, tailored: false, notes: "Posted Sep 10. E-Verify enrolled; typically no sponsorship — verify OPT stance." },
   { id: "r1-08", company: "Bank of America", title: "Senior Data Streaming Engineer", location: "Charlotte, NC", pay: "", board: "The Muse", url: "https://www.themuse.com/hiring/location/charlotte-nc/keyword/senior-data-domain-architect/", dateAdded: "2026-09-20", status: "not-applied", priority: "Medium", remote: false, tailored: false, notes: "Posted Sep 16. Streaming focus: Kafka/Event Hubs, 1M+ records/hr." },
-  { id: "r1-09", company: "U.S. Bank", title: "Senior Data Engineering Specialist", location: "Charlotte, NC", pay: "", board: "career.io", url: "https://career.io/job/senior-data-engineering-specialist-charlotte-us-bank-81fec3000f21a5b4a8c0", dateAdded: "2026-09-20", status: "not-applied", priority: "High", remote: false, tailored: true, notes: "Snowflake + Databricks, on-prem → Azure migration. Lists 10+ yrs (stretch — he has 7+). Verify sponsorship language." },
+  { id: "r1-09", company: "U.S. Bank", title: "Senior Data Engineering Specialist", location: "Charlotte, NC", pay: "", board: "career.io (reference only)", url: "https://career.io/job/senior-data-engineering-specialist-charlotte-us-bank-81fec3000f21a5b4a8c0", dateAdded: "2026-09-20", status: "not-applied", priority: "High", remote: false, tailored: true, notes: "CLOSED: posting not found on careers.usbank.com Sep 20 (reference link now 404; only stale mirrors remain). No application submitted, no account created. Snowflake+Databricks, Azure migration; lists 10+ yrs (stretch — he has 7+)." },
   { id: "r1-10", company: "DTCC", title: "Senior Data Engineer – Data Warehousing / Python / AI", location: "Tampa, FL", pay: "", board: "LinkedIn", url: "https://www.linkedin.com/jobs/senior-data-engineer-jobs", dateAdded: "2026-09-20", status: "not-applied", priority: "Medium", remote: false, tailored: false, notes: "~2 weeks ago, 'Actively Hiring'. Financial market infrastructure. Sponsorship unknown — verify." },
   { id: "r1-11", company: "Trexquant Investment LP", title: "Senior Data Engineer", location: "Stamford, CT", pay: "", board: "LinkedIn", url: "https://www.linkedin.com/jobs/senior-data-engineer-jobs", dateAdded: "2026-09-20", status: "not-applied", priority: "Medium", remote: false, tailored: false, notes: "Posted 3 days ago. Hedge fund. Sponsorship unknown — verify." },
   { id: "r1-12", company: "New York Life Insurance", title: "Senior Associate, Data Engineer", location: "White Plains, NY (onsite)", pay: "$137.5–171.5k/yr", board: "Built In", url: "https://builtin.com/job/senior-associate-data-engineer-white-plains-new-york/9034504", dateAdded: "2026-09-20", status: "not-applied", priority: "High", remote: false, tailored: true, notes: "Req ID 93788. Insurance domain fit. No sponsorship language — verify OPT stance." },
@@ -78,13 +84,13 @@ const DEFAULT_APPS = [
   { id: "e1-07", company: "Riot Games", title: "Principal Data Engineer - Teamfight Tactics", location: "", pay: "", board: "Company portal", url: "", dateAdded: "2026-09-19", status: "applied", priority: "Medium", remote: false, tailored: false, appliedDate: "2026-09-19", notes: "APPLIED Sep 19, 2026 — confirmation email received. Principal level — stretch. Applied directly by candidate." },
   { id: "e1-08", company: "Caterpillar", title: "Senior Data Engineer - Physical AI Platform, Data Engineering", location: "", pay: "", board: "Workday", url: "", dateAdded: "2026-09-19", status: "applied", priority: "Medium", remote: false, tailored: false, appliedDate: "2026-09-19", notes: "APPLIED Sep 19, 2026 — confirmation received, req R0000395330. Applied directly by candidate." },
   { id: "e1-09", company: "LLR Partners", title: "Role not specified in confirmation", location: "", pay: "", board: "Greenhouse", url: "", dateAdded: "2026-09-18", status: "applied", priority: "Medium", remote: false, tailored: false, appliedDate: "2026-09-18", notes: "APPLIED Sep 18, 2026 — confirmation email received; role title not stated. Applied directly by candidate." },
-  { id: "e1-10", company: "You.com", title: "Role not specified in confirmation", location: "", pay: "", board: "Greenhouse", url: "", dateAdded: "2026-09-18", status: "applied", priority: "Medium", remote: false, tailored: false, appliedDate: "2026-09-18", notes: "APPLIED Sep 18, 2026 — confirmation email received; role title not stated. Applied directly by candidate." },
+  { id: "e1-10", company: "You.com", title: "Role not specified in confirmation", location: "", pay: "", board: "Greenhouse", url: "", dateAdded: "2026-09-18", status: "applied", priority: "Medium", remote: false, tailored: false, appliedDate: "2026-09-18", notes: "APPLIED Sep 18, 2026 — confirmation email received. Applied directly by candidate." },
   { id: "e1-11", company: "Strava", title: "Senior Data Engineer", location: "", pay: "", board: "Ashby", url: "", dateAdded: "2026-09-18", status: "applied", priority: "Medium", remote: false, tailored: false, appliedDate: "2026-09-18", notes: "APPLIED Sep 18, 2026 — confirmation email received. Applied directly by candidate." },
   { id: "r2-19", company: "Netsynk", title: "Senior Data Engineer", location: "Remote (NYC/East Coast preferred)", pay: "", board: "Dice", url: "https://www.dice.com/job-detail/936f8801-5ed0-4b7e-af37-bb0f83f30c5a", dateAdded: "2026-09-20", status: "not-applied", priority: "Low", remote: true, tailored: false, notes: "Contract through Jun 2027. Capital markets, ETL, SQL Server, AWS, messaging. Asks 10+ yrs (he has 7+) — stretch." },
   { id: "r2-20", company: "Neurasol", title: "Senior Data Engineer", location: "Remote", pay: "", board: "Dice", url: "https://www.dice.com/job-detail/c6805630-b582-43f6-971d-c0c48dbca259", dateAdded: "2026-09-20", status: "not-applied", priority: "Medium", remote: true, tailored: false, notes: "12-mo contract. dbt Cloud, Snowflake, SQL/Oracle/SSIS migration — SSIS background directly relevant. Asks 8+ yrs; listing may be old — verify active." },
 
   // ---- Discovery run 1 (Apify, Sep 20, 2026; 152 new matches, $0.60) ----
-  { id: "d3-01", company: "Instacart", title: "Senior Data Engineer II, Finance", location: "Remote US", pay: "$183–232k/yr", board: "Instacart Careers", url: "https://instacart.careers/job/?gh_jid=8132846", dateAdded: "2026-09-20", status: "not-applied", priority: "High", remote: true, tailored: false, notes: "Discovery Sep 20 (Apify run 1). Finance + Snowflake/Airflow/Spark/Delta Lake — near-perfect fit. 10+ yrs listed (stretch — he has 7+)." },
+  { id: "d3-01", company: "Instacart", title: "Senior Data Engineer II, Finance", location: "Remote US", pay: "$183–232k/yr", board: "Instacart Careers", url: "https://instacart.careers/job/?gh_jid=8132846", dateAdded: "2026-09-20", status: "not-applied", priority: "High", remote: true, tailored: false, notes: "Discovery Sep 20. Finance + Snowflake/Airflow/Spark/Delta Lake — near-perfect fit. 10+ yrs listed (stretch — he has 7+)." },
   { id: "d3-02", company: "Webflow", title: "Staff Data Engineer", location: "Remote US", pay: "$186.5–255k/yr", board: "Greenhouse", url: "https://job-boards.greenhouse.io/webflow/jobs/8165290", dateAdded: "2026-09-20", status: "not-applied", priority: "Medium", remote: true, tailored: false, notes: "Discovery Sep 20. Spark/Kafka core. Staff level — stretch." },
   { id: "d3-03", company: "AmeriLife", title: "Senior Data Engineer", location: "Remote (FL/MT)", pay: "$142.5–160k/yr", board: "Workday", url: "https://amerilife.wd5.myworkdayjobs.com/External/job/Remote-FL/Senior-Data-Engineer_R5206", dateAdded: "2026-09-20", status: "not-applied", priority: "High", remote: true, tailored: false, notes: "Discovery Sep 20. Databricks/Delta Lake/PySpark/Unity Catalog = exact stack." },
   { id: "d3-04", company: "Accorded", title: "Senior Data Engineer", location: "Remote US", pay: "$140–175k/yr", board: "Rippling ATS", url: "https://ats.rippling.com/accorded/jobs/66cf5b31-d62d-4b88-b33a-abfb69ef5a2f", dateAdded: "2026-09-20", status: "not-applied", priority: "High", remote: true, tailored: false, notes: "Discovery Sep 20. Healthcare data — Cigna background fits." },
@@ -102,35 +108,95 @@ const DEFAULT_APPS = [
 /* ---------------- Constants ---------------- */
 const STAGE_ORDER = ["not-applied", "applied", "screening", "interview", "offer"];
 const STAGE_LABELS = {
-  "not-applied": "Not applied", "applied": "Applied", "screening": "Screening",
+  "not-applied": "To apply", "applied": "Applied", "screening": "Screening",
   "interview": "Interview", "offer": "Offer", "on-hold": "On hold", "rejected": "Rejected"
+};
+const STAGE_COLORS = {
+  "not-applied": "#8e8e93", "applied": "#007aff", "screening": "#ff9500",
+  "interview": "#af52de", "offer": "#34c759"
 };
 const PRIO_RANK = { High: 3, Medium: 2, Low: 1 };
 const LS_KEY = "jp-job-tracker-v1";
 
 /* ---------------- State ---------------- */
-let apps = loadApps();
-let editingId = null;
+let apps = [];
+let lastSyncAt = null;
+let migrateReport = null;
 const filters = { q: "", status: "all", priority: "all", remote: false };
 let sortBy = "priority";
+let editingId = null;
 
-/* ---------------- Persistence ---------------- */
+/* ---------------- Persistence (versioned + self-healing) ---------------- */
 function deepCopy(o) { return JSON.parse(JSON.stringify(o)); }
 
-function loadApps() {
+function readStore() {
   try {
     const raw = localStorage.getItem(LS_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return { v: 1, apps: parsed, updatedAt: null }; // legacy bare array
+    if (parsed && Array.isArray(parsed.apps)) {
+      return { v: typeof parsed.v === "number" ? parsed.v : 1, apps: parsed.apps, updatedAt: parsed.updatedAt || null };
     }
-  } catch (e) { /* storage unavailable — use defaults */ }
-  return deepCopy(DEFAULT_APPS);
+  } catch (e) { /* storage unavailable or corrupt */ }
+  return null;
 }
 
-function saveApps() {
-  try { localStorage.setItem(LS_KEY, JSON.stringify(apps)); }
-  catch (e) { toast("Couldn't save — browser storage unavailable"); }
+function saveStore() {
+  try {
+    lastSyncAt = new Date().toISOString();
+    localStorage.setItem(LS_KEY, JSON.stringify({ v: DATA_VERSION, apps: apps, updatedAt: lastSyncAt }));
+  } catch (e) { toast("Couldn't save — browser storage unavailable"); }
+}
+
+/* Merge seed updates into a saved list.
+   - Missing seed ids are added.
+   - Existing seed ids get refreshed seed fields (URL, notes, pay…).
+   - The visitor's own status / appliedDate are always preserved.
+   - Visitor-added entries (unknown ids) are untouched. */
+function migrateStore(store) {
+  const seedById = {};
+  DEFAULT_APPS.forEach(function (s) { seedById[s.id] = s; });
+  const merged = [];
+  const seen = {};
+  let added = 0, updated = 0;
+
+  store.apps.forEach(function (cur) {
+    if (!cur || !cur.id) return;
+    const seed = seedById[cur.id];
+    seen[cur.id] = true;
+    if (!seed) { merged.push(cur); return; }
+    const status = cur.status, appliedDate = cur.appliedDate;
+    const next = deepCopy(seed);
+    if (status) next.status = status;
+    if (appliedDate) next.appliedDate = appliedDate;
+    merged.push(next);
+    updated++;
+  });
+  DEFAULT_APPS.forEach(function (s) {
+    if (!seen[s.id]) { merged.push(deepCopy(s)); added++; }
+  });
+  return { apps: merged, added: added, updated: updated };
+}
+
+function ensureStore() {
+  const store = readStore();
+  if (!store) {
+    apps = deepCopy(DEFAULT_APPS);
+    saveStore();
+    migrateReport = { added: DEFAULT_APPS.length, updated: 0, fresh: true };
+    return;
+  }
+  if (store.v >= DATA_VERSION) {
+    apps = store.apps;
+    lastSyncAt = store.updatedAt;
+    migrateReport = { added: 0, updated: 0, fresh: false };
+    return;
+  }
+  const res = migrateStore(store);
+  apps = res.apps;
+  saveStore();
+  migrateReport = { added: res.added, updated: res.updated, fresh: false };
 }
 
 /* ---------------- Helpers ---------------- */
@@ -149,13 +215,20 @@ function fmtDate(iso) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+function fmtSync(iso) {
+  if (!iso) return "never synced";
+  const d = new Date(iso);
+  if (isNaN(d)) return "just now";
+  return d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
 let toastTimer = null;
 function toast(msg) {
   const el = $("#toast");
   el.textContent = msg;
   el.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(function () { el.hidden = true; }, 2200);
+  toastTimer = setTimeout(function () { el.hidden = true; }, 2600);
 }
 
 function copyText(text) {
@@ -178,7 +251,9 @@ function copyText(text) {
   } else { fallback(); }
 }
 
-/* ---------------- Render: profile ---------------- */
+function isAppliedStage(a) { return STAGE_ORDER.indexOf(a.status) > 0; }
+
+/* ---------------- Render: profile & facts ---------------- */
 function renderProfile() {
   $("#p-name").textContent = PROFILE.name;
   $("#p-title").textContent = PROFILE.title;
@@ -193,13 +268,12 @@ function renderProfile() {
   }).join("");
 }
 
-/* ---------------- Render: quick facts ---------------- */
 function renderFacts() {
   $("#facts-grid").innerHTML = QUICK_FACTS.map(function (f, i) {
     return '<button class="fact" data-fact="' + i + '">' +
       '<span><span class="fact-label">' + esc(f.label) + '</span>' +
       '<span class="fact-value">' + esc(f.value) + '</span></span>' +
-      '<span class="copy-icon" aria-hidden="true">&#10697;</span>' +
+      '<span class="copy-icon" aria-hidden="true">⧉</span>' +
       "</button>";
   }).join("");
 }
@@ -208,7 +282,9 @@ function renderFacts() {
 function visibleApps() {
   const q = filters.q.trim().toLowerCase();
   let list = apps.filter(function (a) {
-    if (filters.status !== "all" && a.status !== filters.status) return false;
+    if (filters.status === "not-applied" && a.status !== "not-applied") return false;
+    if (filters.status === "applied" && !isAppliedStage(a)) return false;
+    if (filters.status === "on-hold" && a.status !== "on-hold" && a.status !== "rejected") return false;
     if (filters.priority !== "all" && a.priority !== filters.priority) return false;
     if (filters.remote && !a.remote) return false;
     if (q) {
@@ -225,7 +301,6 @@ function visibleApps() {
       if (d !== 0) return d;
       return String(a.company).localeCompare(String(b.company));
     }
-    // priority
     const p = (PRIO_RANK[b.priority] || 0) - (PRIO_RANK[a.priority] || 0);
     if (p !== 0) return p;
     return String(a.company).localeCompare(String(b.company));
@@ -236,7 +311,7 @@ function visibleApps() {
 /* ---------------- Render: dashboard ---------------- */
 function renderDashboard() {
   const total = apps.length;
-  const applied = apps.filter(function (a) { return STAGE_ORDER.indexOf(a.status) > 0; }).length;
+  const applied = apps.filter(isAppliedStage).length;
   const active = apps.filter(function (a) { return a.status === "screening" || a.status === "interview"; }).length;
   const offers = apps.filter(function (a) { return a.status === "offer"; }).length;
   const responded = apps.filter(function (a) {
@@ -251,25 +326,33 @@ function renderDashboard() {
     { num: offers, label: "Offers", cls: "good" },
     { num: rate + "%", label: "Response rate", cls: "good" }
   ].map(function (s) {
-    return '<div class="stat ' + s.cls + '"><span class="stat-num">' + s.num +
+    return '<div class="stat-tile ' + s.cls + '"><span class="stat-num">' + s.num +
       '</span><span class="stat-label">' + s.label + "</span></div>";
   }).join("");
 
-  const stages = [
-    { id: "not-applied", color: "#93a1b8" },
-    { id: "applied", color: "#22d3ee" },
-    { id: "screening", color: "#fbbf24" },
-    { id: "interview", color: "#a78bfa" },
-    { id: "offer", color: "#34d399" }
-  ];
-  $("#funnel").innerHTML = stages.map(function (st) {
-    const n = apps.filter(function (a) { return a.status === st.id; }).length;
-    const pct = total ? Math.max(1, Math.round((n / total) * 100)) : 0;
+  const stages = ["not-applied", "applied", "screening", "interview", "offer"];
+  $("#funnel").innerHTML = stages.map(function (id) {
+    const n = apps.filter(function (a) { return a.status === id; }).length;
     const width = total ? (n / total) * 100 : 0;
-    return '<div class="funnel-row"><span class="f-label">' + STAGE_LABELS[st.id] + "</span>" +
-      '<div class="f-bar"><div style="width:' + width + "%;background:" + st.color + '"></div></div>' +
+    return '<div class="funnel-row"><span class="f-label">' + STAGE_LABELS[id] + "</span>" +
+      '<div class="f-bar"><div style="width:' + width + "%;background:" + STAGE_COLORS[id] + '"></div></div>' +
       '<span class="f-count">' + n + "</span></div>";
   }).join("");
+}
+
+/* ---------------- Render: sync line ---------------- */
+function renderSyncLine() {
+  const dot = $("#sync-dot"), txt = $("#sync-text");
+  const stale = migrateReport && (migrateReport.added > 0 || migrateReport.updated > 0);
+  dot.className = "sync-dot" + (stale ? " stale" : "");
+  if (migrateReport && migrateReport.fresh) {
+    txt.textContent = "Fresh list · v" + DATA_VERSION;
+  } else if (stale) {
+    txt.textContent = "Updated just now: " + migrateReport.added + " new, " +
+      migrateReport.updated + " refreshed · v" + DATA_VERSION;
+  } else {
+    txt.textContent = "Up to date · synced " + fmtSync(lastSyncAt) + " · v" + DATA_VERSION;
+  }
 }
 
 /* ---------------- Render: app list ---------------- */
@@ -286,50 +369,68 @@ function renderList() {
   box.innerHTML = list.map(function (a) {
     const stLabel = STAGE_LABELS[a.status] || a.status;
     const canAdvance = STAGE_ORDER.indexOf(a.status) !== -1 && STAGE_ORDER.indexOf(a.status) < STAGE_ORDER.length - 1;
-    const badgeTitle = canAdvance
-      ? "Click to advance to " + STAGE_LABELS[STAGE_ORDER[STAGE_ORDER.indexOf(a.status) + 1]]
+    const pillTitle = canAdvance
+      ? "Tap to advance to " + STAGE_LABELS[STAGE_ORDER[STAGE_ORDER.indexOf(a.status) + 1]]
       : "Status: " + stLabel;
-    return '<article class="app-card prio-card-' + esc(a.priority) + '" data-id="' + esc(a.id) + '">' +
-      '<div class="card-top"><div>' +
-        '<div class="company">' + esc(a.company) + "</div>" +
-        "<h3>" + esc(a.title) + "</h3>" +
+    const meta = [a.location, a.pay].filter(Boolean).map(esc).join(" · ");
+    return '<article class="app-card" data-id="' + esc(a.id) + '">' +
+      '<div class="card-top" data-expand="' + esc(a.id) + '">' +
+        '<span class="prio-dot ' + esc(a.priority) + '" title="' + esc(a.priority) + ' priority"></span>' +
+        '<div class="card-title-block">' +
+          '<div class="company">' + esc(a.company) + "</div>" +
+          "<h3>" + esc(a.title) + "</h3>" +
+          (meta ? '<div class="meta-line">' + meta + "</div>" : "") +
+        "</div>" +
+        '<button class="status-pill st-' + esc(a.status) + '" data-advance="' + esc(a.id) + '" title="' + esc(pillTitle) + '">' +
+          esc(stLabel) + (canAdvance ? " ›" : "") + "</button>" +
       "</div>" +
-      '<button class="status-badge st-' + esc(a.status) + '" data-advance="' + esc(a.id) + '" title="' + esc(badgeTitle) + '">' +
-        esc(stLabel) + (canAdvance ? " &#9656;" : "") + "</button>" +
-      "</div>" +
-      '<div class="card-meta">' +
-        (a.location ? "<span>&#128205; " + esc(a.location) + "</span>" : "") +
-        (a.pay ? "<span>&#128176; " + esc(a.pay) + "</span>" : "") +
-        (a.board ? "<span>&#128193; " + esc(a.board) + "</span>" : "") +
-        '<span class="prio prio-' + esc(a.priority) + '">' + esc(a.priority) + " priority</span>" +
-        (a.tailored ? '<span class="tailored-flag">&#10003; Tailored resume ready</span>' : "") +
-      "</div>" +
-      (a.notes ? '<div class="card-notes">' + esc(a.notes) + "</div>" : "") +
-      '<div class="card-foot">' +
-        (a.url ? '<a class="btn btn-sm btn-accent" href="' + esc(a.url) + '" target="_blank" rel="noopener">Apply</a>' : "") +
-        '<button class="icon-btn" data-edit="' + esc(a.id) + '">Edit</button>' +
-        '<button class="icon-btn" data-del="' + esc(a.id) + '">Delete</button>' +
-        '<span class="date">Added ' + fmtDate(a.dateAdded) + "</span>" +
+      '<div class="card-detail" id="detail-' + esc(a.id) + '" hidden>' +
+        '<div class="card-flags">' +
+          '<span class="flag board">' + esc(a.priority) + " priority</span>" +
+          (a.board ? '<span class="flag board">' + esc(a.board) + "</span>" : "") +
+          (a.remote ? '<span class="flag remote">Remote</span>' : "") +
+          (a.tailored ? '<span class="flag tailored">✓ Tailored resume ready</span>' : "") +
+        "</div>" +
+        (a.notes ? '<div class="card-notes">' + esc(a.notes) + "</div>" : "") +
+        '<div class="card-actions">' +
+          (a.url ? '<a class="btn btn-sm btn-primary" href="' + esc(a.url) + '" target="_blank" rel="noopener">Open posting</a>' : "") +
+          '<button class="btn btn-sm btn-ghost" data-edit="' + esc(a.id) + '">Edit</button>' +
+          '<button class="btn btn-sm btn-ghost" data-del="' + esc(a.id) + '">Delete</button>' +
+          '<span class="date">Added ' + fmtDate(a.dateAdded) +
+            (a.appliedDate ? " · Applied " + fmtDate(a.appliedDate) : "") + "</span>" +
+        "</div>" +
       "</div>" +
     "</article>";
   }).join("");
 }
 
 function renderAll() {
+  renderSyncLine();
   renderDashboard();
   renderList();
 }
 
-/* ---------------- Status advance ---------------- */
+/* ---------------- Status advance / expand ---------------- */
 function advanceStatus(id) {
   const app = apps.find(function (a) { return a.id === id; });
   if (!app) return;
   const i = STAGE_ORDER.indexOf(app.status);
-  if (i === -1 || i >= STAGE_ORDER.length - 1) return;
+  if (i === -1 || i >= STAGE_ORDER.length - 1) {
+    toast("Edit the card to change its status");
+    return;
+  }
   app.status = STAGE_ORDER[i + 1];
-  saveApps();
+  if (app.status === "applied" && !app.appliedDate) {
+    app.appliedDate = new Date().toISOString().slice(0, 10);
+  }
+  saveStore();
   renderAll();
   toast(app.company + " → " + STAGE_LABELS[app.status]);
+}
+
+function toggleDetail(id) {
+  const el = document.getElementById("detail-" + id);
+  if (el) el.hidden = !el.hidden;
 }
 
 /* ---------------- Modal ---------------- */
@@ -357,10 +458,10 @@ function openModal(mode, id) {
     form.tailored.checked = !!a.tailored;
     form.notes.value = a.notes || "";
   } else {
-    form.dateAdded.value = "2026-09-20";
+    form.dateAdded.value = new Date().toISOString().slice(0, 10);
   }
   backdrop.hidden = false;
-  form.company.focus();
+  setTimeout(function () { form.company.focus(); }, 60);
 }
 
 function closeModal() {
@@ -389,6 +490,18 @@ function genId() {
   return "u" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
 
+/* ---------------- Sync ---------------- */
+function syncNow() {
+  ensureStore();
+  renderAll();
+  const r = migrateReport;
+  if (r.added || r.updated) {
+    toast("Synced: " + r.added + " new, " + r.updated + " refreshed");
+  } else {
+    toast("Up to date — " + apps.length + " tracked, " + apps.filter(isAppliedStage).length + " applied");
+  }
+}
+
 /* ---------------- Export / import / reset ---------------- */
 function exportJSON() {
   const blob = new Blob([JSON.stringify(apps, null, 2)], { type: "application/json" });
@@ -415,13 +528,14 @@ function importJSON(file) {
           company: x.company, title: x.title,
           location: x.location || "", pay: x.pay || "", board: x.board || "",
           url: x.url || "", dateAdded: x.dateAdded || new Date().toISOString().slice(0, 10),
+          appliedDate: x.appliedDate || "",
           status: STAGE_LABELS[x.status] ? x.status : "not-applied",
           priority: ["High", "Medium", "Low"].indexOf(x.priority) !== -1 ? x.priority : "Medium",
           remote: !!x.remote, tailored: !!x.tailored, notes: x.notes || ""
         };
       });
       apps = valid;
-      saveApps();
+      saveStore();
       renderAll();
       toast("Imported " + valid.length + " applications");
     } catch (e) {
@@ -432,10 +546,9 @@ function importJSON(file) {
 }
 
 function resetDefaults() {
-  if (!confirm("Reset everything to the original 35 preloaded applications? Your edits will be lost.")) return;
+  if (!confirm("Reset to the " + DEFAULT_APPS.length + " preloaded applications? Your edits will be lost.")) return;
   try { localStorage.removeItem(LS_KEY); } catch (e) {}
-  apps = deepCopy(DEFAULT_APPS);
-  saveApps();
+  ensureStore();
   renderAll();
   toast("Reset to defaults");
 }
@@ -448,14 +561,34 @@ function bindEvents() {
   });
 
   $("#filter-q").addEventListener("input", function (e) { filters.q = e.target.value; renderList(); });
-  $("#filter-status").addEventListener("change", function (e) { filters.status = e.target.value; renderList(); });
-  $("#filter-priority").addEventListener("change", function (e) { filters.priority = e.target.value; renderList(); });
+
+  $("#status-seg").addEventListener("click", function (e) {
+    const btn = e.target.closest("[data-status]");
+    if (!btn) return;
+    Array.prototype.forEach.call(this.querySelectorAll(".seg-btn"), function (b) {
+      b.classList.toggle("is-active", b === btn);
+    });
+    filters.status = btn.getAttribute("data-status");
+    renderList();
+  });
+
+  $("#prio-chips").addEventListener("click", function (e) {
+    const btn = e.target.closest("[data-prio]");
+    if (!btn) return;
+    Array.prototype.forEach.call(this.querySelectorAll(".chip"), function (b) {
+      b.classList.toggle("is-active", b === btn);
+    });
+    filters.priority = btn.getAttribute("data-prio");
+    renderList();
+  });
+
   $("#filter-remote").addEventListener("change", function (e) { filters.remote = e.target.checked; renderList(); });
   $("#sort-by").addEventListener("change", function (e) { sortBy = e.target.value; renderList(); });
+  $("#btn-sync").addEventListener("click", syncNow);
 
   $("#app-list").addEventListener("click", function (e) {
     const adv = e.target.closest("[data-advance]");
-    if (adv) { advanceStatus(adv.getAttribute("data-advance")); return; }
+    if (adv) { e.stopPropagation(); advanceStatus(adv.getAttribute("data-advance")); return; }
     const ed = e.target.closest("[data-edit]");
     if (ed) { openModal("edit", ed.getAttribute("data-edit")); return; }
     const del = e.target.closest("[data-del]");
@@ -464,12 +597,22 @@ function bindEvents() {
       const app = apps.find(function (x) { return x.id === id; });
       if (app && confirm('Delete "' + app.title + '" at ' + app.company + "?")) {
         apps = apps.filter(function (x) { return x.id !== id; });
-        saveApps(); renderAll(); toast("Deleted");
+        saveStore(); renderAll(); toast("Deleted");
       }
+      return;
     }
+    if (e.target.closest("a")) return;
+    const exp = e.target.closest("[data-expand]");
+    if (exp) toggleDetail(exp.getAttribute("data-expand"));
   });
 
-  $("#btn-add").addEventListener("click", function () { openModal("add"); });
+  function wireAdd(id) {
+    const b = $(id);
+    if (b) b.addEventListener("click", function () { openModal("add"); });
+  }
+  wireAdd("#btn-add");
+  wireAdd("#btn-add-top");
+
   $("#btn-cancel").addEventListener("click", closeModal);
   backdrop.addEventListener("click", function (e) { if (e.target === backdrop) closeModal(); });
   document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !backdrop.hidden) closeModal(); });
@@ -478,7 +621,7 @@ function bindEvents() {
     const app = apps.find(function (x) { return x.id === editingId; });
     if (app && confirm('Delete "' + app.title + '" at ' + app.company + "?")) {
       apps = apps.filter(function (x) { return x.id !== editingId; });
-      saveApps(); renderAll(); closeModal(); toast("Deleted");
+      saveStore(); renderAll(); closeModal(); toast("Deleted");
     }
   });
 
@@ -495,7 +638,7 @@ function bindEvents() {
       apps.unshift(data);
       toast("Added");
     }
-    saveApps(); renderAll(); closeModal();
+    saveStore(); renderAll(); closeModal();
   });
 
   $("#btn-export").addEventListener("click", exportJSON);
@@ -508,7 +651,11 @@ function bindEvents() {
 }
 
 /* ---------------- Init ---------------- */
+ensureStore();
 renderProfile();
 renderFacts();
 bindEvents();
 renderAll();
+if (migrateReport && (migrateReport.added || migrateReport.updated)) {
+  toast("Synced: " + migrateReport.added + " new roles, " + migrateReport.updated + " refreshed");
+}
