@@ -1,12 +1,11 @@
 /* Job Application Tracker — Jayanth Pasupuleti
-   iOS 27 Liquid Glass edition. Plain JS, no dependencies.
+   OPS DECK edition: kanban mission-control. Plain JS, no dependencies.
    Seed data is versioned: bumping DATA_VERSION merges new/changed seed
    entries into every visitor's saved list (localStorage) without wiping
    their own additions or status changes. */
 
 "use strict";
 
-/* ---------------- Profile & quick facts ---------------- */
 const PROFILE = {
   name: "Jayanth Pasupuleti",
   title: "Senior Data Engineer",
@@ -31,12 +30,13 @@ const QUICK_FACTS = [
   { label: "Previously employed here", value: "No — fresh applicant" }
 ];
 
-/* Bump this whenever DEFAULT_APPS changes so saved lists get the update. */
-const DATA_VERSION = 2;
 
-/* ---------------- Preloaded applications ----------------
-   status: not-applied | applied | screening | interview | offer | on-hold | rejected
-   priority: High | Medium | Low                                            */
+/* Bump this whenever DEFAULT_APPS changes so saved lists get the update.
+   v3: OPS DECK redesign. Schema unchanged; migration re-runs the safe
+   seed merge (adds missing seeds, refreshes seed fields, preserves the
+   visitor's own statuses, applied dates, and custom records). */
+const DATA_VERSION = 3;
+
 const DEFAULT_APPS = [
   // ---- Round 1, Tier 1 ----
   { id: "r1-01", company: "Motion Recruitment Partners", title: "Senior Data Engineer (Insurance Data Migration Specialist)", location: "Remote US", pay: "$140–180k/yr", board: "Dice", url: "https://www.dice.com/job-detail/086e09b8-2393-4b8b-ac2b-6fd4d22f9737", dateAdded: "2026-09-20", status: "on-hold", priority: "Medium", remote: true, tailored: true, notes: "Insurance data migration + bank conversion background = strong domain fit. ON HOLD: posting requires Canada work authorization." },
@@ -104,19 +104,27 @@ const DEFAULT_APPS = [
   { id: "d3-12", company: "Staples", title: "Senior Data Engineer, Supply Chain & AI", location: "Onsite", pay: "$118–162k/yr", board: "Oracle HCM", url: "https://fa-exhh-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_2002/job/74949", dateAdded: "2026-09-20", status: "not-applied", priority: "Medium", remote: false, tailored: false, notes: "Discovery Sep 20. Snowflake/dbt/Databricks." },
   { id: "d3-13", company: "SpotHero", title: "Senior Data Engineer I", location: "Hybrid", pay: "$136–153k/yr", board: "SpotHero Careers", url: "https://spothero.com/careers/8214597/?gh_jid=8214597", dateAdded: "2026-09-20", status: "not-applied", priority: "Medium", remote: false, tailored: false, notes: "Discovery Sep 20. Airflow/Kafka." }
 ];
-
 /* ---------------- Constants ---------------- */
 const STAGE_ORDER = ["not-applied", "applied", "screening", "interview", "offer"];
 const STAGE_LABELS = {
-  "not-applied": "To apply", "applied": "Applied", "screening": "Screening",
+  "not-applied": "Queue", "applied": "Applied", "screening": "Screening",
   "interview": "Interview", "offer": "Offer", "on-hold": "On hold", "rejected": "Rejected"
 };
-const STAGE_COLORS = {
-  "not-applied": "#8e8e93", "applied": "#007aff", "screening": "#ff9500",
-  "interview": "#af52de", "offer": "#34c759"
-};
+
+/* Kanban lanes: the board's columns. */
+const LANES = [
+  { key: "queue",  label: "QUEUE",       statuses: ["not-applied"], color: "#8e8e93" },
+  { key: "applied", label: "APPLIED",    statuses: ["applied"],     color: "#46d9ff" },
+  { key: "screen", label: "SCREENING",   statuses: ["screening"],   color: "#ffb224" },
+  { key: "talks",  label: "INTERVIEW",   statuses: ["interview"],   color: "#b48cff" },
+  { key: "offer",  label: "OFFER",       statuses: ["offer"],       color: "#c8ff2e" },
+  { key: "hold",   label: "ON HOLD",     statuses: ["on-hold"],     color: "#ff6b6b" },
+  { key: "shelf",  label: "SHELF",       statuses: ["rejected"],    color: "#5f665c" }
+];
 const PRIO_RANK = { High: 3, Medium: 2, Low: 1 };
+const PRIO_COLORS = { High: "#ff6b6b", Medium: "#ffb224", Low: "#5f665c" };
 const LS_KEY = "jp-job-tracker-v1";
+const THEME_KEY = "jp-job-tracker-theme";
 
 /* ---------------- State ---------------- */
 let apps = [];
@@ -124,7 +132,10 @@ let lastSyncAt = null;
 let migrateReport = null;
 const filters = { q: "", status: "all", priority: "all", remote: false };
 let sortBy = "priority";
+let view = "board";
 let editingId = null;
+let firstPaint = true;
+let activeLaneIdx = 0;
 
 /* ---------------- Persistence (versioned + self-healing) ---------------- */
 function deepCopy(o) { return JSON.parse(JSON.stringify(o)); }
@@ -146,7 +157,7 @@ function saveStore() {
   try {
     lastSyncAt = new Date().toISOString();
     localStorage.setItem(LS_KEY, JSON.stringify({ v: DATA_VERSION, apps: apps, updatedAt: lastSyncAt }));
-  } catch (e) { toast("Couldn't save — browser storage unavailable"); }
+  } catch (e) { toast("SAVE FAILED — STORAGE UNAVAILABLE"); }
 }
 
 /* Merge seed updates into a saved list.
@@ -199,6 +210,20 @@ function ensureStore() {
   migrateReport = { added: res.added, updated: res.updated, fresh: false };
 }
 
+/* ---------------- Theme ---------------- */
+function initTheme() {
+  let t = null;
+  try { t = localStorage.getItem(THEME_KEY); } catch (e) {}
+  if (t !== "light" && t !== "dark") t = "dark";
+  document.documentElement.setAttribute("data-theme", t);
+}
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", cur);
+  try { localStorage.setItem(THEME_KEY, cur); } catch (e) {}
+  toast(cur === "light" ? "PAPER MODE" : "DARK OPS MODE");
+}
+
 /* ---------------- Helpers ---------------- */
 function $(sel) { return document.querySelector(sel); }
 
@@ -239,19 +264,62 @@ function copyText(text) {
     ta.style.opacity = "0";
     document.body.appendChild(ta);
     ta.select();
-    try { document.execCommand("copy"); toast("Copied"); }
-    catch (e) { toast("Copy failed"); }
+    try { document.execCommand("copy"); toast("COPIED TO CLIPBOARD"); }
+    catch (e) { toast("COPY FAILED"); }
     document.body.removeChild(ta);
   }
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(text).then(
-      function () { toast("Copied"); },
+      function () { toast("COPIED TO CLIPBOARD"); },
       function () { fallback(); }
     );
   } else { fallback(); }
 }
 
 function isAppliedStage(a) { return STAGE_ORDER.indexOf(a.status) > 0; }
+function laneOf(status) {
+  for (let i = 0; i < LANES.length; i++) {
+    if (LANES[i].statuses.indexOf(status) !== -1) return LANES[i];
+  }
+  return LANES[0];
+}
+
+/* ---------------- Filtering / sorting ---------------- */
+function matchFilters(a, useStatus) {
+  if (useStatus) {
+    if (filters.status === "not-applied" && a.status !== "not-applied") return false;
+    if (filters.status === "applied" && !isAppliedStage(a)) return false;
+    if (filters.status === "on-hold" && a.status !== "on-hold" && a.status !== "rejected") return false;
+  }
+  if (filters.priority !== "all" && a.priority !== filters.priority) return false;
+  if (filters.remote && !a.remote) return false;
+  const q = filters.q.trim().toLowerCase();
+  if (q) {
+    const hay = [a.company, a.title, a.location, a.pay, a.board, a.notes]
+      .map(function (x) { return String(x || "").toLowerCase(); }).join(" ");
+    if (hay.indexOf(q) === -1) return false;
+  }
+  return true;
+}
+
+function sortList(list) {
+  list.sort(function (a, b) {
+    if (sortBy === "company") return String(a.company).localeCompare(String(b.company));
+    if (sortBy === "date") {
+      const d = String(b.dateAdded || "").localeCompare(String(a.dateAdded || ""));
+      if (d !== 0) return d;
+      return String(a.company).localeCompare(String(b.company));
+    }
+    const p = (PRIO_RANK[b.priority] || 0) - (PRIO_RANK[a.priority] || 0);
+    if (p !== 0) return p;
+    return String(a.company).localeCompare(String(b.company));
+  });
+  return list;
+}
+
+function visibleApps() {
+  return sortList(apps.filter(function (a) { return matchFilters(a, view === "list"); }));
+}
 
 /* ---------------- Render: profile & facts ---------------- */
 function renderProfile() {
@@ -271,166 +339,278 @@ function renderProfile() {
 function renderFacts() {
   $("#facts-grid").innerHTML = QUICK_FACTS.map(function (f, i) {
     return '<button class="fact" data-fact="' + i + '">' +
-      '<span><span class="fact-label">' + esc(f.label) + '</span>' +
+      '<span><span class="fact-label">' + esc(f.label.toUpperCase()) + '</span>' +
       '<span class="fact-value">' + esc(f.value) + '</span></span>' +
       '<span class="copy-icon" aria-hidden="true">⧉</span>' +
       "</button>";
   }).join("");
 }
 
-/* ---------------- Filtering / sorting ---------------- */
-function visibleApps() {
-  const q = filters.q.trim().toLowerCase();
-  let list = apps.filter(function (a) {
-    if (filters.status === "not-applied" && a.status !== "not-applied") return false;
-    if (filters.status === "applied" && !isAppliedStage(a)) return false;
-    if (filters.status === "on-hold" && a.status !== "on-hold" && a.status !== "rejected") return false;
-    if (filters.priority !== "all" && a.priority !== filters.priority) return false;
-    if (filters.remote && !a.remote) return false;
-    if (q) {
-      const hay = [a.company, a.title, a.location, a.pay, a.board, a.notes]
-        .map(function (x) { return String(x || "").toLowerCase(); }).join(" ");
-      if (hay.indexOf(q) === -1) return false;
-    }
-    return true;
-  });
-  list.sort(function (a, b) {
-    if (sortBy === "company") return String(a.company).localeCompare(String(b.company));
-    if (sortBy === "date") {
-      const d = String(b.dateAdded || "").localeCompare(String(a.dateAdded || ""));
-      if (d !== 0) return d;
-      return String(a.company).localeCompare(String(b.company));
-    }
-    const p = (PRIO_RANK[b.priority] || 0) - (PRIO_RANK[a.priority] || 0);
-    if (p !== 0) return p;
-    return String(a.company).localeCompare(String(b.company));
-  });
-  return list;
+/* ---------------- Render: HUD ---------------- */
+const prevHud = {};
+function hudNum(key, val) {
+  const from = firstPaint ? 0 : (prevHud[key] || 0);
+  prevHud[key] = val;
+  if (from === val || firstPaint === false && from === val) return String(val);
+  return { animate: true, from: from, to: val };
 }
 
-/* ---------------- Render: dashboard ---------------- */
-function renderDashboard() {
+function renderHUD() {
   const total = apps.length;
   const applied = apps.filter(isAppliedStage).length;
-  const active = apps.filter(function (a) { return a.status === "screening" || a.status === "interview"; }).length;
+  const inPlay = apps.filter(function (a) { return a.status === "screening" || a.status === "interview"; }).length;
   const offers = apps.filter(function (a) { return a.status === "offer"; }).length;
   const responded = apps.filter(function (a) {
     return a.status === "screening" || a.status === "interview" || a.status === "offer";
   }).length;
   const rate = applied ? Math.round((responded / applied) * 100) : 0;
 
-  $("#stat-cards").innerHTML = [
-    { num: total, label: "Tracked", cls: "" },
-    { num: applied, label: "Applied", cls: "accent" },
-    { num: active, label: "Active interviews", cls: "accent" },
-    { num: offers, label: "Offers", cls: "good" },
-    { num: rate + "%", label: "Response rate", cls: "good" }
-  ].map(function (s) {
-    return '<div class="stat-tile ' + s.cls + '"><span class="stat-num">' + s.num +
-      '</span><span class="stat-label">' + s.label + "</span></div>";
+  const tiles = [
+    { key: "total",   num: total,   label: "ROLES TRACKED",   sub: filters.q ? "FILTERED VIEW" : "FULL BOOK",  accent: "#8e8e93" },
+    { key: "applied", num: applied, label: "APPLIED",         sub: total ? Math.round(applied / total * 100) + "% OF BOOK" : "", accent: "#46d9ff" },
+    { key: "inplay",  num: inPlay,  label: "IN PLAY",         sub: "SCREEN + INTERVIEW", accent: "#ffb224" },
+    { key: "offers",  num: offers,   label: "OFFERS",         sub: offers ? "NEGOTIATE" : "HUNT CONTINUES", accent: "#c8ff2e" },
+    { key: "rate",    num: rate,     suffix: "%", label: "RESPONSE RATE", sub: responded + " RESPONSES", accent: "#b48cff" }
+  ];
+
+  $("#stat-cards").innerHTML = tiles.map(function (t) {
+    const v = hudNum(t.key, t.num);
+    const numHtml = (v && v.animate)
+      ? '<span class="hud-num" data-count-from="' + v.from + '" data-count-to="' + v.to + '" data-suffix="' + esc(t.suffix || "") + '">0' + esc(t.suffix || "") + "</span>"
+      : '<span class="hud-num">' + t.num + esc(t.suffix || "") + "</span>";
+    return '<div class="hud-tile" style="--tile-accent:' + t.accent + '">' + numHtml +
+      '<span class="hud-label">' + t.label + "</span>" +
+      (t.sub ? '<span class="hud-sub">' + esc(t.sub) + "</span>" : "") + "</div>";
   }).join("");
 
-  const stages = ["not-applied", "applied", "screening", "interview", "offer"];
-  $("#funnel").innerHTML = stages.map(function (id) {
-    const n = apps.filter(function (a) { return a.status === id; }).length;
-    const width = total ? (n / total) * 100 : 0;
-    return '<div class="funnel-row"><span class="f-label">' + STAGE_LABELS[id] + "</span>" +
-      '<div class="f-bar"><div style="width:' + width + "%;background:" + STAGE_COLORS[id] + '"></div></div>' +
-      '<span class="f-count">' + n + "</span></div>";
+  Array.prototype.forEach.call(document.querySelectorAll("[data-count-to]"), function (el) {
+    const from = +el.getAttribute("data-count-from"), to = +el.getAttribute("data-count-to");
+    const suffix = el.getAttribute("data-suffix") || "";
+    const t0 = performance.now(), dur = 700;
+    function step(t) {
+      const p = Math.min(1, (t - t0) / dur);
+      const e = 1 - Math.pow(1 - p, 3);
+      el.textContent = Math.round(from + (to - from) * e) + suffix;
+      if (p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  });
+}
+
+/* ---------------- Render: pipeline flow ---------------- */
+function renderFlow() {
+  const total = apps.length || 1;
+  const flow = ["not-applied", "applied", "screening", "interview", "offer"];
+  const colors = { "not-applied": "#8e8e93", "applied": "#46d9ff", "screening": "#ffb224", "interview": "#b48cff", "offer": "#c8ff2e" };
+  let prev = null;
+  $("#pipeline-flow").innerHTML = flow.map(function (st) {
+    const n = apps.filter(function (a) { return a.status === st; }).length;
+    const conv = prev === null ? "ENTRY" : (prev ? Math.round(n / prev * 100) + "% FWD" : "—");
+    prev = n;
+    return '<div class="flow-node" style="--fn-color:' + colors[st] + '">' +
+      '<span class="fn-count">' + n + "</span>" +
+      '<span class="fn-label">' + STAGE_LABELS[st].toUpperCase() + "</span>" +
+      '<span class="fn-conv">' + conv + "</span>" +
+      '<div class="flow-bar"><div style="width:' + Math.max(2, Math.round(n / total * 100)) + '%"></div></div>' +
+      "</div>";
   }).join("");
+  const hold = apps.filter(function (a) { return a.status === "on-hold"; }).length;
+  const shelf = apps.filter(function (a) { return a.status === "rejected"; }).length;
+  $("#flow-sub").textContent = "HOLD " + hold + " · SHELF " + shelf;
 }
 
-/* ---------------- Render: sync line ---------------- */
-function renderSyncLine() {
-  const dot = $("#sync-dot"), txt = $("#sync-text");
-  const stale = migrateReport && (migrateReport.added > 0 || migrateReport.updated > 0);
-  dot.className = "sync-dot" + (stale ? " stale" : "");
-  if (migrateReport && migrateReport.fresh) {
-    txt.textContent = "Fresh list · v" + DATA_VERSION;
-  } else if (stale) {
-    txt.textContent = "Updated just now: " + migrateReport.added + " new, " +
-      migrateReport.updated + " refreshed · v" + DATA_VERSION;
-  } else {
-    txt.textContent = "Up to date · synced " + fmtSync(lastSyncAt) + " · v" + DATA_VERSION;
-  }
+/* ---------------- Render: cards (shared) ---------------- */
+function cardInner(a, idx) {
+  const lane = laneOf(a.status);
+  const stLabel = (STAGE_LABELS[a.status] || a.status).toUpperCase();
+  const i = STAGE_ORDER.indexOf(a.status);
+  const canAdvance = i !== -1 && i < STAGE_ORDER.length - 1;
+  const meta = [a.location, a.pay].filter(Boolean).map(esc).join("  ·  ");
+  const tags =
+    (a.priority ? '<span class="tag" style="color:' + (PRIO_COLORS[a.priority] || "#8e8e93") + ";border:1px solid " + (PRIO_COLORS[a.priority] || "#8e8e93") + '44">' + esc(a.priority.toUpperCase()) + "</span>" : "") +
+    (a.remote ? '<span class="tag tag-cyan">REMOTE</span>' : "") +
+    (a.tailored ? '<span class="tag tag-lime">TAILORED CV</span>' : "") +
+    (a.board ? '<span class="tag tag-gray">' + esc(a.board.toUpperCase().slice(0, 22)) + "</span>" : "");
+  return '<div class="card-top" data-expand="' + esc(a.id) + '">' +
+      '<div class="card-main">' +
+        '<div class="card-company">' + esc(a.company) + "</div>" +
+        '<div class="card-title">' + esc(a.title) + "</div>" +
+        (meta ? '<div class="card-meta">' + meta + "</div>" : "") +
+      "</div>" +
+    "</div>" +
+    (tags ? '<div class="card-tags">' + tags + "</div>" : "") +
+    '<div class="card-foot">' +
+      '<button class="status-chip" data-advance="' + esc(a.id) + '" title="' +
+        (canAdvance ? "Advance to " + STAGE_LABELS[STAGE_ORDER[i + 1]] : "Status: " + stLabel) + '">' +
+        esc(stLabel) + (canAdvance ? " →" : "") + "</button>" +
+      '<span class="card-date">' + fmtDate(a.dateAdded) +
+        (a.appliedDate ? " · ✓ " + fmtDate(a.appliedDate) : "") + "</span>" +
+    "</div>" +
+    '<div class="card-detail" id="detail-' + esc(a.id) + '" hidden>' +
+      (a.notes ? '<div class="card-notes">' + esc(a.notes) + "</div>" : "") +
+      '<div class="card-actions">' +
+        (a.url ? '<a class="mini-btn go" href="' + esc(a.url) + '" target="_blank" rel="noopener">OPEN POSTING ↗</a>' : "") +
+        '<button class="mini-btn" data-edit="' + esc(a.id) + '">EDIT</button>' +
+        '<button class="mini-btn" data-del="' + esc(a.id) + '">DELETE</button>' +
+        '<span class="card-jobid">ID ' + esc(a.id) + "</span>" +
+      "</div>" +
+    "</div>";
 }
 
-/* ---------------- Render: app list ---------------- */
+/* ---------------- Render: board ---------------- */
+function renderBoard() {
+  const board = $("#board");
+  board.innerHTML = LANES.map(function (lane, li) {
+    const cards = sortList(apps.filter(function (a) {
+      return lane.statuses.indexOf(a.status) !== -1 && matchFilters(a, false);
+    }));
+    const cardsHtml = cards.length
+      ? cards.map(function (a, ci) {
+          return '<div class="card" draggable="true" data-card="' + esc(a.id) + '" data-lane="' + lane.key + '"' +
+            ' style="--lane-color:' + lane.color + ";--prio-color:" + (PRIO_COLORS[a.priority] || "#5f665c") +
+            ";animation-delay:" + Math.min(ci * 30, 420) + 'ms">' +
+            cardInner(a, ci) + "</div>";
+        }).join("")
+      : '<div class="lane-empty">EMPTY LANE<br>DRAG CARDS HERE</div>';
+    return '<div class="lane" data-lane-col="' + lane.key + '" style="--lane-color:' + lane.color + '">' +
+      '<div class="lane-head"><span class="lane-dot"></span>' +
+      '<span class="lane-name">' + lane.label + '</span>' +
+      '<span class="lane-count">' + cards.length + "</span></div>" +
+      '<div class="lane-body" data-drop="' + lane.statuses[0] + '">' + cardsHtml + "</div>" +
+      "</div>";
+  }).join("");
+  updateLaneName();
+}
+
+/* ---------------- Render: list ---------------- */
 function renderList() {
   const list = visibleApps();
   const box = $("#app-list");
-  $("#result-count").textContent = "Showing " + list.length + " of " + apps.length + " applications";
-
+  $("#result-count").textContent = "SHOWING " + list.length + " / " + apps.length;
   if (!list.length) {
-    box.innerHTML = '<div class="empty-state">No applications match these filters.<br>Try clearing the search or add a new one.</div>';
+    box.innerHTML = '<div class="empty-state">NO RECORDS MATCH — CLEAR FILTERS OR LOG A NEW ONE</div>';
     return;
   }
-
-  box.innerHTML = list.map(function (a) {
-    const stLabel = STAGE_LABELS[a.status] || a.status;
-    const canAdvance = STAGE_ORDER.indexOf(a.status) !== -1 && STAGE_ORDER.indexOf(a.status) < STAGE_ORDER.length - 1;
-    const pillTitle = canAdvance
-      ? "Tap to advance to " + STAGE_LABELS[STAGE_ORDER[STAGE_ORDER.indexOf(a.status) + 1]]
-      : "Status: " + stLabel;
-    const meta = [a.location, a.pay].filter(Boolean).map(esc).join(" · ");
-    return '<article class="app-card" data-id="' + esc(a.id) + '">' +
-      '<div class="card-top" data-expand="' + esc(a.id) + '">' +
-        '<span class="prio-dot ' + esc(a.priority) + '" title="' + esc(a.priority) + ' priority"></span>' +
-        '<div class="card-title-block">' +
-          '<div class="company">' + esc(a.company) + "</div>" +
-          "<h3>" + esc(a.title) + "</h3>" +
-          (meta ? '<div class="meta-line">' + meta + "</div>" : "") +
-        "</div>" +
-        '<button class="status-pill st-' + esc(a.status) + '" data-advance="' + esc(a.id) + '" title="' + esc(pillTitle) + '">' +
-          esc(stLabel) + (canAdvance ? " ›" : "") + "</button>" +
-      "</div>" +
-      '<div class="card-detail" id="detail-' + esc(a.id) + '" hidden>' +
-        '<div class="card-flags">' +
-          '<span class="flag board">' + esc(a.priority) + " priority</span>" +
-          (a.board ? '<span class="flag board">' + esc(a.board) + "</span>" : "") +
-          (a.remote ? '<span class="flag remote">Remote</span>' : "") +
-          (a.tailored ? '<span class="flag tailored">✓ Tailored resume ready</span>' : "") +
+  box.innerHTML = list.map(function (a, i) {
+    const lane = laneOf(a.status);
+    const stLabel = (STAGE_LABELS[a.status] || a.status).toUpperCase();
+    const meta = [a.location, a.pay, a.board].filter(Boolean).map(esc).join("  ·  ");
+    return '<div class="row" data-expand="' + esc(a.id) + '" style="--prio-color:' + (PRIO_COLORS[a.priority] || "#5f665c") +
+      ";animation-delay:" + Math.min(i * 22, 400) + 'ms">' +
+      '<span class="row-prio"></span>' +
+      '<div class="row-main"><div class="row-company">' + esc(a.company) + '</div>' +
+      '<div class="row-title">' + esc(a.title) + "</div></div>" +
+      '<div class="row-meta">' + meta + "</div>" +
+      '<button class="status-chip" data-advance="' + esc(a.id) + '" style="--lane-color:' + lane.color + '">' + esc(stLabel) + "</button>" +
+      '<div class="row-detail" id="detail-' + esc(a.id) + '" hidden>' +
+        '<div class="card-tags">' +
+          (a.priority ? '<span class="tag" style="color:' + (PRIO_COLORS[a.priority] || "#8e8e93") + '">' + esc(a.priority.toUpperCase()) + "</span>" : "") +
+          (a.remote ? '<span class="tag tag-cyan">REMOTE</span>' : "") +
+          (a.tailored ? '<span class="tag tag-lime">TAILORED CV</span>' : "") +
+          '<span class="tag tag-gray">ADDED ' + fmtDate(a.dateAdded).toUpperCase() + "</span>" +
+          (a.appliedDate ? '<span class="tag tag-lime">APPLIED ' + fmtDate(a.appliedDate).toUpperCase() + "</span>" : "") +
         "</div>" +
         (a.notes ? '<div class="card-notes">' + esc(a.notes) + "</div>" : "") +
         '<div class="card-actions">' +
-          (a.url ? '<a class="btn btn-sm btn-primary" href="' + esc(a.url) + '" target="_blank" rel="noopener">Open posting</a>' : "") +
-          '<button class="btn btn-sm btn-ghost" data-edit="' + esc(a.id) + '">Edit</button>' +
-          '<button class="btn btn-sm btn-ghost" data-del="' + esc(a.id) + '">Delete</button>' +
-          '<span class="date">Added ' + fmtDate(a.dateAdded) +
-            (a.appliedDate ? " · Applied " + fmtDate(a.appliedDate) : "") + "</span>" +
+          (a.url ? '<a class="mini-btn go" href="' + esc(a.url) + '" target="_blank" rel="noopener">OPEN POSTING ↗</a>' : "") +
+          '<button class="mini-btn" data-edit="' + esc(a.id) + '">EDIT</button>' +
+          '<button class="mini-btn" data-del="' + esc(a.id) + '">DELETE</button>' +
+          '<span class="card-jobid">ID ' + esc(a.id) + "</span>" +
         "</div>" +
       "</div>" +
-    "</article>";
+    "</div>";
   }).join("");
 }
 
-function renderAll() {
-  renderSyncLine();
-  renderDashboard();
-  renderList();
+/* ---------------- Render: sync ---------------- */
+function renderSync() {
+  const dot = $("#sync-dot"), txt = $("#sync-text");
+  const stale = migrateReport && (migrateReport.added > 0 || migrateReport.updated > 0);
+  dot.className = "sync-dot" + (stale ? " stale" : "");
+  let line;
+  if (migrateReport && migrateReport.fresh) {
+    line = "FRESH BOOK · v" + DATA_VERSION;
+  } else if (stale) {
+    line = "+" + migrateReport.added + " NEW · " + migrateReport.updated + " REFRESHED";
+  } else {
+    line = "IN SYNC · v" + DATA_VERSION;
+  }
+  txt.textContent = line;
+  $("#data-version").textContent = "SEED v" + DATA_VERSION;
+  $("#foot-sync").textContent = "LAST SYNC " + fmtSync(lastSyncAt).toUpperCase();
 }
 
-/* ---------------- Status advance / expand ---------------- */
+function renderAll() {
+  renderSync();
+  renderHUD();
+  renderFlow();
+  if (view === "board") { renderBoard(); } else { renderList(); }
+  firstPaint = false;
+}
+
+/* ---------------- Status ops ---------------- */
+function setStatus(id, status) {
+  const app = apps.find(function (a) { return a.id === id; });
+  if (!app || app.status === status) return;
+  app.status = status;
+  if (status === "applied" && !app.appliedDate) {
+    app.appliedDate = new Date().toISOString().slice(0, 10);
+  }
+  saveStore();
+  renderAll();
+  toast(app.company.toUpperCase() + " → " + (STAGE_LABELS[status] || status).toUpperCase());
+}
+
 function advanceStatus(id) {
   const app = apps.find(function (a) { return a.id === id; });
   if (!app) return;
   const i = STAGE_ORDER.indexOf(app.status);
   if (i === -1 || i >= STAGE_ORDER.length - 1) {
-    toast("Edit the card to change its status");
+    toast("EDIT THE RECORD TO CHANGE STATUS");
     return;
   }
-  app.status = STAGE_ORDER[i + 1];
-  if (app.status === "applied" && !app.appliedDate) {
-    app.appliedDate = new Date().toISOString().slice(0, 10);
-  }
-  saveStore();
-  renderAll();
-  toast(app.company + " → " + STAGE_LABELS[app.status]);
+  setStatus(id, STAGE_ORDER[i + 1]);
 }
 
 function toggleDetail(id) {
-  const el = document.getElementById("detail-" + id);
+  const el = document.getElementById("detail-" + CSS.escape(id));
   if (el) el.hidden = !el.hidden;
+}
+
+/* ---------------- View switching ---------------- */
+function setView(v) {
+  view = v;
+  $("#view-board").classList.toggle("is-active", v === "board");
+  $("#view-list").classList.toggle("is-active", v === "list");
+  $("#view-board").setAttribute("aria-selected", v === "board");
+  $("#view-list").setAttribute("aria-selected", v === "list");
+  $("#board-section").hidden = v !== "board";
+  $("#list-section").hidden = v !== "list";
+  $("#status-seg").hidden = v !== "list";
+  renderAll();
+}
+
+/* ---------------- Lane navigator (mobile) ---------------- */
+function updateLaneName() {
+  const board = $("#board");
+  const lanes = board.querySelectorAll(".lane");
+  if (!lanes.length) return;
+  let best = 0, bestDist = Infinity;
+  const bx = board.getBoundingClientRect().left;
+  lanes.forEach(function (l, i) {
+    const d = Math.abs(l.getBoundingClientRect().left - bx);
+    if (d < bestDist) { bestDist = d; best = i; }
+  });
+  activeLaneIdx = best;
+  const lane = LANES[best];
+  if (lane) $("#lane-name").textContent = lane.label + " · " + board.querySelectorAll(".lane")[best].querySelector(".lane-count").textContent;
+}
+function gotoLane(idx) {
+  const board = $("#board");
+  const lanes = board.querySelectorAll(".lane");
+  if (!lanes.length) return;
+  idx = Math.max(0, Math.min(lanes.length - 1, idx));
+  lanes[idx].scrollIntoView({ behavior: "smooth", inline: "start", block: "nearest" });
 }
 
 /* ---------------- Modal ---------------- */
@@ -439,29 +619,29 @@ const form = $("#app-form");
 
 function openModal(mode, id) {
   editingId = mode === "edit" ? id : null;
-  $("#modal-title").textContent = mode === "edit" ? "Edit application" : "Add application";
+  const app = mode === "edit" ? apps.find(function (x) { return x.id === id; }) : null;
+  $("#modal-title").textContent = mode === "edit" ? "EDIT RECORD" : "LOG APPLICATION";
+  $("#modal-sub").textContent = mode === "edit" && app ? app.company.toUpperCase().slice(0, 28) : "NEW RECORD";
   $("#btn-delete").hidden = mode !== "edit";
   form.reset();
-  if (mode === "edit") {
-    const a = apps.find(function (x) { return x.id === id; });
-    if (!a) return;
-    form.company.value = a.company || "";
-    form.title.value = a.title || "";
-    form.location.value = a.location || "";
-    form.pay.value = a.pay || "";
-    form.board.value = a.board || "";
-    form.url.value = a.url || "";
-    form.status.value = a.status || "not-applied";
-    form.priority.value = a.priority || "Medium";
-    form.dateAdded.value = a.dateAdded || "";
-    form.remote.checked = !!a.remote;
-    form.tailored.checked = !!a.tailored;
-    form.notes.value = a.notes || "";
+  if (app) {
+    form.elements.company.value = app.company || "";
+    form.elements.title.value = app.title || "";
+    form.elements.location.value = app.location || "";
+    form.elements.pay.value = app.pay || "";
+    form.elements.board.value = app.board || "";
+    form.elements.url.value = app.url || "";
+    form.elements.status.value = app.status || "not-applied";
+    form.elements.priority.value = app.priority || "Medium";
+    form.elements.dateAdded.value = app.dateAdded || "";
+    form.elements.remote.checked = !!app.remote;
+    form.elements.tailored.checked = !!app.tailored;
+    form.elements.notes.value = app.notes || "";
   } else {
-    form.dateAdded.value = new Date().toISOString().slice(0, 10);
+    form.elements.dateAdded.value = new Date().toISOString().slice(0, 10);
   }
   backdrop.hidden = false;
-  setTimeout(function () { form.company.focus(); }, 60);
+  setTimeout(function () { form.elements.company.focus(); }, 60);
 }
 
 function closeModal() {
@@ -471,18 +651,18 @@ function closeModal() {
 
 function collectForm() {
   return {
-    company: form.company.value.trim(),
-    title: form.title.value.trim(),
-    location: form.location.value.trim(),
-    pay: form.pay.value.trim(),
-    board: form.board.value.trim(),
-    url: form.url.value.trim(),
-    status: form.status.value,
-    priority: form.priority.value,
-    dateAdded: form.dateAdded.value || new Date().toISOString().slice(0, 10),
-    remote: form.remote.checked,
-    tailored: form.tailored.checked,
-    notes: form.notes.value.trim()
+    company: form.elements.company.value.trim(),
+    title: form.elements.title.value.trim(),
+    location: form.elements.location.value.trim(),
+    pay: form.elements.pay.value.trim(),
+    board: form.elements.board.value.trim(),
+    url: form.elements.url.value.trim(),
+    status: form.elements.status.value,
+    priority: form.elements.priority.value,
+    dateAdded: form.elements.dateAdded.value || new Date().toISOString().slice(0, 10),
+    remote: form.elements.remote.checked,
+    tailored: form.elements.tailored.checked,
+    notes: form.elements.notes.value.trim()
   };
 }
 
@@ -496,9 +676,9 @@ function syncNow() {
   renderAll();
   const r = migrateReport;
   if (r.added || r.updated) {
-    toast("Synced: " + r.added + " new, " + r.updated + " refreshed");
+    toast("SYNCED: +" + r.added + " NEW · " + r.updated + " REFRESHED");
   } else {
-    toast("Up to date — " + apps.length + " tracked, " + apps.filter(isAppliedStage).length + " applied");
+    toast("IN SYNC — " + apps.length + " TRACKED · " + apps.filter(isAppliedStage).length + " APPLIED");
   }
 }
 
@@ -511,7 +691,7 @@ function exportJSON() {
   document.body.appendChild(a);
   a.click();
   setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
-  toast("Exported " + apps.length + " applications");
+  toast("EXPORTED " + apps.length + " RECORDS");
 }
 
 function importJSON(file) {
@@ -537,30 +717,51 @@ function importJSON(file) {
       apps = valid;
       saveStore();
       renderAll();
-      toast("Imported " + valid.length + " applications");
+      toast("IMPORTED " + valid.length + " RECORDS");
     } catch (e) {
-      toast("Import failed — not a valid JSON file");
+      toast("IMPORT FAILED — INVALID JSON");
     }
   };
   reader.readAsText(file);
 }
 
 function resetDefaults() {
-  if (!confirm("Reset to the " + DEFAULT_APPS.length + " preloaded applications? Your edits will be lost.")) return;
+  if (!confirm("Reset to the " + DEFAULT_APPS.length + " preloaded records? Your edits will be lost.")) return;
   try { localStorage.removeItem(LS_KEY); } catch (e) {}
   ensureStore();
   renderAll();
-  toast("Reset to defaults");
+  toast("RESET TO SEED BOOK");
 }
 
 /* ---------------- Events ---------------- */
 function bindEvents() {
+  $("#theme-toggle").addEventListener("click", toggleTheme);
+  $("#view-board").addEventListener("click", function () { setView("board"); });
+  $("#view-list").addEventListener("click", function () { setView("list"); });
+
+  $("#btn-operator").addEventListener("click", function () {
+    const panel = $("#operator-panel");
+    panel.hidden = !panel.hidden;
+    if (!panel.hidden) {
+      setTimeout(function () { panel.scrollIntoView({ behavior: "smooth", block: "nearest" }); }, 60);
+    }
+  });
+  $("#btn-operator-close").addEventListener("click", function () {
+    $("#operator-panel").hidden = true;
+  });
+
   $("#facts-grid").addEventListener("click", function (e) {
     const btn = e.target.closest("[data-fact]");
     if (btn) copyText(QUICK_FACTS[+btn.getAttribute("data-fact")].value);
   });
 
-  $("#filter-q").addEventListener("input", function (e) { filters.q = e.target.value; renderList(); });
+  $("#filter-q").addEventListener("input", function (e) { filters.q = e.target.value; renderAll(); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "/" && !/input|textarea|select/i.test(document.activeElement.tagName)) {
+      e.preventDefault();
+      $("#filter-q").focus();
+    }
+  });
 
   $("#status-seg").addEventListener("click", function (e) {
     const btn = e.target.closest("[data-status]");
@@ -579,31 +780,83 @@ function bindEvents() {
       b.classList.toggle("is-active", b === btn);
     });
     filters.priority = btn.getAttribute("data-prio");
-    renderList();
+    renderAll();
   });
 
-  $("#filter-remote").addEventListener("change", function (e) { filters.remote = e.target.checked; renderList(); });
-  $("#sort-by").addEventListener("change", function (e) { sortBy = e.target.value; renderList(); });
+  $("#filter-remote").addEventListener("change", function (e) { filters.remote = e.target.checked; renderAll(); });
+  $("#sort-by").addEventListener("change", function (e) { sortBy = e.target.value; renderAll(); });
   $("#btn-sync").addEventListener("click", syncNow);
 
-  $("#app-list").addEventListener("click", function (e) {
+  $("#lane-prev").addEventListener("click", function () { gotoLane(activeLaneIdx - 1); });
+  $("#lane-next").addEventListener("click", function () { gotoLane(activeLaneIdx + 1); });
+  let laneTick = false;
+  $("#board").addEventListener("scroll", function () {
+    if (laneTick) return;
+    laneTick = true;
+    requestAnimationFrame(function () { updateLaneName(); laneTick = false; });
+  }, { passive: true });
+
+  /* Card interactions (delegated for board + list) */
+  function cardZoneClick(e) {
     const adv = e.target.closest("[data-advance]");
     if (adv) { e.stopPropagation(); advanceStatus(adv.getAttribute("data-advance")); return; }
     const ed = e.target.closest("[data-edit]");
-    if (ed) { openModal("edit", ed.getAttribute("data-edit")); return; }
+    if (ed) { e.stopPropagation(); openModal("edit", ed.getAttribute("data-edit")); return; }
     const del = e.target.closest("[data-del]");
     if (del) {
+      e.stopPropagation();
       const id = del.getAttribute("data-del");
       const app = apps.find(function (x) { return x.id === id; });
       if (app && confirm('Delete "' + app.title + '" at ' + app.company + "?")) {
         apps = apps.filter(function (x) { return x.id !== id; });
-        saveStore(); renderAll(); toast("Deleted");
+        saveStore(); renderAll(); toast("RECORD DELETED");
       }
       return;
     }
     if (e.target.closest("a")) return;
     const exp = e.target.closest("[data-expand]");
     if (exp) toggleDetail(exp.getAttribute("data-expand"));
+  }
+  $("#board").addEventListener("click", cardZoneClick);
+  $("#app-list").addEventListener("click", cardZoneClick);
+
+  /* Drag & drop between lanes */
+  let dragId = null;
+  $("#board").addEventListener("dragstart", function (e) {
+    const card = e.target.closest("[data-card]");
+    if (!card) return;
+    dragId = card.getAttribute("data-card");
+    e.dataTransfer.effectAllowed = "move";
+    try { e.dataTransfer.setData("text/plain", dragId); } catch (err) {}
+    setTimeout(function () { card.classList.add("dragging"); }, 0);
+  });
+  $("#board").addEventListener("dragend", function () {
+    dragId = null;
+    Array.prototype.forEach.call($("#board").querySelectorAll(".dragging"), function (c) {
+      c.classList.remove("dragging");
+    });
+    Array.prototype.forEach.call($("#board").querySelectorAll(".drag-over"), function (z) {
+      z.classList.remove("drag-over");
+    });
+  });
+  $("#board").addEventListener("dragover", function (e) {
+    const zone = e.target.closest("[data-drop]");
+    if (!zone || !dragId) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    zone.classList.add("drag-over");
+  });
+  $("#board").addEventListener("dragleave", function (e) {
+    const zone = e.target.closest("[data-drop]");
+    if (zone && !zone.contains(e.relatedTarget)) zone.classList.remove("drag-over");
+  });
+  $("#board").addEventListener("drop", function (e) {
+    const zone = e.target.closest("[data-drop]");
+    if (!zone || !dragId) return;
+    e.preventDefault();
+    zone.classList.remove("drag-over");
+    setStatus(dragId, zone.getAttribute("data-drop"));
+    dragId = null;
   });
 
   function wireAdd(id) {
@@ -621,22 +874,22 @@ function bindEvents() {
     const app = apps.find(function (x) { return x.id === editingId; });
     if (app && confirm('Delete "' + app.title + '" at ' + app.company + "?")) {
       apps = apps.filter(function (x) { return x.id !== editingId; });
-      saveStore(); renderAll(); closeModal(); toast("Deleted");
+      saveStore(); renderAll(); closeModal(); toast("RECORD DELETED");
     }
   });
 
   form.addEventListener("submit", function (e) {
     e.preventDefault();
     const data = collectForm();
-    if (!data.company || !data.title) { toast("Company and role title are required"); return; }
+    if (!data.company || !data.title) { toast("COMPANY + ROLE TITLE REQUIRED"); return; }
     if (editingId) {
       const app = apps.find(function (x) { return x.id === editingId; });
       if (app) Object.assign(app, data);
-      toast("Updated");
+      toast("RECORD UPDATED");
     } else {
       data.id = genId();
       apps.unshift(data);
-      toast("Added");
+      toast("APPLICATION LOGGED");
     }
     saveStore(); renderAll(); closeModal();
   });
@@ -650,12 +903,16 @@ function bindEvents() {
   $("#btn-reset").addEventListener("click", resetDefaults);
 }
 
-/* ---------------- Init ---------------- */
-ensureStore();
-renderProfile();
-renderFacts();
-bindEvents();
-renderAll();
-if (migrateReport && (migrateReport.added || migrateReport.updated)) {
-  toast("Synced: " + migrateReport.added + " new roles, " + migrateReport.updated + " refreshed");
+/* ---------------- Init (gated by Face ID lock when enabled) ---------------- */
+function bootApp() {
+  initTheme();
+  ensureStore();
+  renderProfile();
+  renderFacts();
+  bindEvents();
+  renderAll();
+  if (migrateReport && (migrateReport.added || migrateReport.updated)) {
+    toast("SYNCED: +" + migrateReport.added + " NEW · " + migrateReport.updated + " REFRESHED");
+  }
 }
+if (window.__faceLockGate) { window.__faceLockGate(bootApp); } else { bootApp(); }
