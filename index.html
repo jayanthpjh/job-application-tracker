@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Job Application Tracker — Jayanth Pasupuleti</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="avatar">JP</div>
+        <div>
+          <h1>Job Application Tracker</h1>
+          <p class="subtitle">Jayanth Pasupuleti · Senior Data Engineer</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-accent" id="btn-add">+ Add application</button>
+        <button class="btn" id="btn-export">Export JSON</button>
+        <button class="btn" id="btn-import">Import JSON</button>
+        <button class="btn btn-danger-ghost" id="btn-reset">Reset</button>
+        <input type="file" id="import-file" accept="application/json" hidden>
+      </div>
+    </div>
+  </header>
+
+  <main class="layout">
+
+    <section class="card profile-card" aria-label="Profile">
+      <h2>Profile</h2>
+      <div class="profile-grid">
+        <div class="profile-field"><span class="label">Name</span><span id="p-name"></span></div>
+        <div class="profile-field"><span class="label">Title</span><span id="p-title"></span></div>
+        <div class="profile-field"><span class="label">Location</span><span id="p-location"></span></div>
+        <div class="profile-field"><span class="label">Work authorization</span><span id="p-auth" class="pill pill-warn"></span></div>
+        <div class="profile-field"><span class="label">Target salary</span><span id="p-salary"></span></div>
+        <div class="profile-field"><span class="label">Availability</span><span id="p-avail" class="pill pill-ok"></span></div>
+        <div class="profile-field"><span class="label">Email</span><a id="p-email" href="#"></a></div>
+        <div class="profile-field"><span class="label">LinkedIn</span><a id="p-linkedin" href="#" target="_blank" rel="noopener"></a></div>
+        <div class="profile-field full"><span class="label">Top skills</span><span id="p-skills" class="skills"></span></div>
+      </div>
+    </section>
+
+    <section class="card facts-card" aria-label="Quick apply facts">
+      <h2>Quick apply facts <span class="hint">tap to copy</span></h2>
+      <div class="facts-grid" id="facts-grid"></div>
+    </section>
+
+    <section class="dashboard" aria-label="Dashboard">
+      <div class="stat-cards" id="stat-cards"></div>
+      <div class="card funnel-card">
+        <h2>Pipeline</h2>
+        <div class="funnel" id="funnel"></div>
+      </div>
+    </section>
+
+    <section class="card controls" aria-label="Filters">
+      <div class="controls-row">
+        <input type="search" id="filter-q" placeholder="Search company, role, location, notes…" autocomplete="off">
+        <select id="filter-status" aria-label="Status filter">
+          <option value="all">All statuses</option>
+          <option value="not-applied">Not applied</option>
+          <option value="applied">Applied</option>
+          <option value="screening">Screening</option>
+          <option value="interview">Interview</option>
+          <option value="offer">Offer</option>
+          <option value="on-hold">On hold</option>
+          <option value="rejected">Rejected</option>
+        </select>
+        <select id="filter-priority" aria-label="Priority filter">
+          <option value="all">All priorities</option>
+          <option value="High">High</option>
+          <option value="Medium">Medium</option>
+          <option value="Low">Low</option>
+        </select>
+        <select id="sort-by" aria-label="Sort">
+          <option value="priority">Sort: Priority</option>
+          <option value="date">Sort: Newest</option>
+          <option value="company">Sort: Company A–Z</option>
+        </select>
+        <label class="toggle">
+          <input type="checkbox" id="filter-remote">
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          Remote only
+        </label>
+      </div>
+      <p class="result-count" id="result-count"></p>
+    </section>
+
+    <section class="app-list" id="app-list" aria-label="Applications"></section>
+
+  </main>
+
+  <div class="modal-backdrop" id="modal-backdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <h2 id="modal-title">Add application</h2>
+      <form id="app-form" novalidate>
+        <div class="form-grid">
+          <label>Company*<input name="company" required placeholder="Acme Corp"></label>
+          <label>Role title*<input name="title" required placeholder="Senior Data Engineer"></label>
+          <label>Location<input name="location" placeholder="Remote US"></label>
+          <label>Pay<input name="pay" placeholder="$140–175k/yr"></label>
+          <label>Job board<input name="board" placeholder="LinkedIn / Built In / Dice"></label>
+          <label class="full">Apply URL<input name="url" type="url" placeholder="https://…"></label>
+          <label>Status
+            <select name="status">
+              <option value="not-applied">Not applied</option>
+              <option value="applied">Applied</option>
+              <option value="screening">Screening</option>
+              <option value="interview">Interview</option>
+              <option value="offer">Offer</option>
+              <option value="on-hold">On hold</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </label>
+          <label>Priority
+            <select name="priority">
+              <option>High</option>
+              <option selected>Medium</option>
+              <option>Low</option>
+            </select>
+          </label>
+          <label>Date added<input name="dateAdded" type="date" value="2026-09-20"></label>
+          <label class="check"><input name="remote" type="checkbox"> Remote role</label>
+          <label class="check"><input name="tailored" type="checkbox"> Tailored resume ready</label>
+          <label class="full">Notes<textarea name="notes" rows="3" placeholder="Fit notes, OPT/E-Verify flags…"></textarea></label>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-danger-ghost" id="btn-delete" hidden>Delete</button>
+          <span class="spacer"></span>
+          <button type="button" class="btn" id="btn-cancel">Cancel</button>
+          <button type="submit" class="btn btn-accent">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>
